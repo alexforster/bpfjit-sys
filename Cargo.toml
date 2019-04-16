@@ -1,0 +1,20 @@
+[package]
+name = "bpfjit-sys"
+version = "1.0.0"
+description = "Rust bindings to NetBSD's cBPF JIT engine"
+repository = "https://github.com/alexforster/bpfjit-sys"
+keywords = ["bpf", "cbpf", "jit", "libbpfjit", "libpcap"]
+authors = ["Alex Forster <alex@alexforster.com>"]
+license = "BSD-2-Clause"
+edition = "2018"
+build = "build.rs"
+travis-ci = { repository = "alexforster/bpfjit-sys", branch = "master" }
+
+[dependencies]
+libc = "0.2"
+
+[build-dependencies]
+cc = "1.0"
+
+[lib]
+crate-type = ["lib", "staticlib"]
