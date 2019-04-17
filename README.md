@@ -10,13 +10,20 @@ Rust bindings to NetBSD's cBPF JIT engine
 
 ### Usage
 
-```
-static PACKET: &'static [u8] = &[...];
+```rust
 
-let filter = BpfJit::new("udp dst port 123")?;
+use bpfjit_sys::BpfJit;
 
-if filter.matches(PACKET) {
-	...
+static PACKET: &'static [u8] = &[
+	// 0xDE, 0xAD, 0xBE, 0xEF, ...
+];
+
+fn main() {
+	let filter = BpfJit::new("udp dst port 123")?;
+	
+	if filter.matches(PACKET) {
+		// ...
+	}
 }
 ```
 

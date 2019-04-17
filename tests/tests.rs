@@ -22,13 +22,22 @@ mod tests {
     ];
 
     #[test]
-    fn test() -> Result<(), Box<Error>> {
-        let filter = BpfJit::new("udp dst port 123")?;
-        assert_eq!(filter.matches(UDP_123_PACKET), true);
-        assert_eq!(filter.matches(TCP_NULL_PACKET), false);
-        let filter = BpfJit::new("tcp src port 46424")?;
-        assert_eq!(filter.matches(TCP_NULL_PACKET), true);
-        assert_eq!(filter.matches(UDP_123_PACKET), false);
+    fn test_udp_123_packet() -> Result<(), Box<Error>> {
+        for i in 0..10000 {
+            let filter = BpfJit::new("udp dst port 123")?;
+            assert_eq!(filter.matches(UDP_123_PACKET), true);
+            assert_eq!(filter.matches(TCP_NULL_PACKET), false);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_tcp_null_packet() -> Result<(), Box<Error>> {
+        for i in 0..10000 {
+            let filter = BpfJit::new("tcp src port 46424")?;
+            assert_eq!(filter.matches(TCP_NULL_PACKET), true);
+            assert_eq!(filter.matches(UDP_123_PACKET), false);
+        }
         Ok(())
     }
 }
