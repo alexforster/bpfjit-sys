@@ -81,6 +81,7 @@ lazy_static! {
 
 pub struct BpfJit
 {
+    prog: bpf_program_t,
     ctx: *const bpf_ctx_t,
     cb: bpfjit_func_t,
 }
@@ -91,12 +92,17 @@ impl BpfJit
     {
         unsafe {
             let mut result: BpfJit = mem::zeroed();
-            let mut prog: bpf_program_t = mem::zeroed();
 
             let lock = BIGLOCK.lock()?; // pcap_compile() in libpcap < 1.8 is not thread-safe
 
             let pcap = pcap_open_dead(1, 65535);
-            let compiled = pcap_compile(pcap, &mut prog, ffi::CString::new(filter)?.as_ptr(), 1, 0xffffffff);
+            let compiled = pcap_compile(
+                pcap,
+                &mut result.prog,
+                ffi::CString::new(filter)?.as_ptr(),
+                1,
+                0xffffffff,
+            );
             pcap_close(pcap);
 
             drop(lock);
@@ -105,8 +111,7 @@ impl BpfJit
                 return Err(Box::from("could not compile cBPF expression"));
             }
 
-            result.ctx = mem::zeroed();
-            result.cb = bpfjit_generate_code(result.ctx, prog.bf_insns, prog.bf_len as libc::size_t);
+            result.cb = bpfjit_generate_code(result.ctx, result.prog.bf_insns, result.prog.bf_len as libc::size_t);
             if result.cb.is_none() {
                 return Err(Box::from("could not JIT cBPF expression"));
             }
@@ -124,6 +129,25 @@ impl BpfJit
             bpf_args.buflen = data.len();
 
             self.cb.unwrap()(self.ctx, &mut bpf_args) != 0
+        }
+    }
+}
+
+impl Clone for BpfJit
+{
+    fn clone(&self) -> Self
+    {
+        unsafe {
+            let mut result: BpfJit = mem::zeroed();
+
+            result.prog = self.prog;
+
+            result.cb = bpfjit_generate_code(result.ctx, result.prog.bf_insns, result.prog.bf_len as libc::size_t);
+            if result.cb.is_none() {
+                panic!("could not JIT cBPF expression"); // we already JIT'ed the same program before, so this should never happen
+            }
+
+            result
         }
     }
 }
