@@ -23,17 +23,23 @@ mod tests {
 
     #[test]
     fn test_udp_123_packet() -> Result<(), Box<Error>> {
-        let filter = BpfJit::new("udp dst port 123")?;
-        assert_eq!(filter.matches(UDP_123_PACKET), true);
-        assert_eq!(filter.matches(TCP_NULL_PACKET), false);
+        let l2_filter = BpfJit::new("udp dst port 123")?;
+        assert_eq!(l2_filter.matches(UDP_123_PACKET), true);
+        assert_eq!(l2_filter.matches(TCP_NULL_PACKET), false);
+        let l3_filter = BpfJit::new_ip("udp dst port 123")?;
+        assert_eq!(l3_filter.matches(&UDP_123_PACKET[14..]), true);
+        assert_eq!(l3_filter.matches(&TCP_NULL_PACKET[14..]), false);
         Ok(())
     }
 
     #[test]
     fn test_tcp_null_packet() -> Result<(), Box<Error>> {
-        let filter = BpfJit::new("tcp src port 46424")?;
-        assert_eq!(filter.matches(TCP_NULL_PACKET), true);
-        assert_eq!(filter.matches(UDP_123_PACKET), false);
+        let l2_filter = BpfJit::new_ethernet("tcp src port 46424")?;
+        assert_eq!(l2_filter.matches(TCP_NULL_PACKET), true);
+        assert_eq!(l2_filter.matches(UDP_123_PACKET), false);
+        let l3_filter = BpfJit::new_ip("tcp src port 46424")?;
+        assert_eq!(l3_filter.matches(&TCP_NULL_PACKET[14..]), true);
+        assert_eq!(l3_filter.matches(&UDP_123_PACKET[14..]), false);
         Ok(())
     }
 

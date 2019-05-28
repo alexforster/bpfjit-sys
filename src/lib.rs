@@ -62,6 +62,9 @@ extern "C" {
 
     #[link_name = "pcap_close"]
     fn pcap_close(p: *mut ffi::c_void);
+
+    #[link_name = "pcap_geterr"]
+    fn pcap_geterr(p: *mut ffi::c_void) -> *const libc::c_char;
 }
 
 extern "C" {
@@ -88,12 +91,16 @@ pub struct BpfJit {
 
 impl BpfJit {
     pub fn new(filter: &str) -> Result<Self, Box<Error>> {
+        BpfJit::new_ethernet(filter)
+    }
+
+    pub fn new_ethernet(filter: &str) -> Result<Self, Box<Error>> {
         unsafe {
             let mut result: BpfJit = mem::zeroed();
 
             let lock = BIGLOCK.lock()?; // pcap_compile() in libpcap < 1.8 is not thread-safe
 
-            let pcap = pcap_open_dead(1, 65535);
+            let pcap = pcap_open_dead(1 /* LINKTYPE_ETHERNET */, 65535);
             let compiled = pcap_compile(
                 pcap,
                 &mut result.prog,
@@ -106,10 +113,55 @@ impl BpfJit {
             drop(lock);
 
             if compiled != 0 {
-                return Err(Box::from("could not compile cBPF expression"));
+                return Err(Box::from(format!(
+                    "could not compile cBPF expression: {}",
+                    ffi::CStr::from_ptr(pcap_geterr(pcap)).to_str().unwrap()
+                )));
             }
 
-            result.cb = bpfjit_generate_code(result.ctx, result.prog.bf_insns, result.prog.bf_len as libc::size_t);
+            result.cb = bpfjit_generate_code(
+                result.ctx,
+                result.prog.bf_insns,
+                result.prog.bf_len as libc::size_t,
+            );
+            if result.cb.is_none() {
+                return Err(Box::from("could not JIT cBPF expression"));
+            }
+
+            Ok(result)
+        }
+    }
+
+    pub fn new_ip(filter: &str) -> Result<Self, Box<Error>> {
+        unsafe {
+            let mut result: BpfJit = mem::zeroed();
+
+            let lock = BIGLOCK.lock()?; // pcap_compile() in libpcap < 1.8 is not thread-safe
+
+            let pcap = pcap_open_dead(12 /* LINKTYPE_RAW */, 65535);
+            let compiled = pcap_compile(
+                pcap,
+                &mut result.prog,
+                ffi::CString::new(filter)?.as_ptr(),
+                1,
+                0xffffffff,
+            );
+            pcap_close(pcap);
+
+            drop(lock);
+
+            if compiled != 0 {
+                return Err(Box::from(format!(
+                    "could not compile cBPF expression: {}",
+                    ffi::CStr::from_ptr(pcap_geterr(pcap)).to_str().unwrap()
+                )));
+            }
+
+            result.cb = bpfjit_generate_code(
+                result.ctx,
+                result.prog.bf_insns,
+                result.prog.bf_len as libc::size_t,
+            );
             if result.cb.is_none() {
                 return Err(Box::from("could not JIT cBPF expression"));
             }
