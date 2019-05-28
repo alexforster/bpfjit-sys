@@ -151,12 +151,12 @@ impl Clone for BpfJit {
     }
 }
 
-impl Drop for BpfJit
-{
-    fn drop(&mut self)
-    {
+impl Drop for BpfJit {
+    fn drop(&mut self) {
         unsafe {
-            bpfjit_free_code(self.cb);
+            if self.cb.is_some() {
+                bpfjit_free_code(self.cb);
+            }
         }
     }
 }
