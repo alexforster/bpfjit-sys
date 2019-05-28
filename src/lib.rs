@@ -10,8 +10,7 @@ use libc;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-struct bpf_insn_t
-{
+struct bpf_insn_t {
     pub code: libc::c_ushort,
     pub jt: libc::c_uchar,
     pub jf: libc::c_uchar,
@@ -20,16 +19,14 @@ struct bpf_insn_t
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-struct bpf_program_t
-{
+struct bpf_program_t {
     pub bf_len: libc::c_uint,
     pub bf_insns: *mut bpf_insn_t,
 }
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-struct bpf_args_t
-{
+struct bpf_args_t {
     pub pkt: *const libc::c_uchar,
     pub wirelen: libc::size_t,
     pub buflen: libc::size_t,
@@ -39,15 +36,15 @@ struct bpf_args_t
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-struct bpf_ctx_t
-{
+struct bpf_ctx_t {
     pub copfuncs: *const ffi::c_void,
     pub nfuncs: libc::size_t,
     pub extwords: libc::size_t,
     pub preinited: libc::c_uint,
 }
 
-type bpfjit_func_t = Option<unsafe extern "C" fn(ctx: *const bpf_ctx_t, args: *mut bpf_args_t) -> libc::c_uint>;
+type bpfjit_func_t =
+    Option<unsafe extern "C" fn(ctx: *const bpf_ctx_t, args: *mut bpf_args_t) -> libc::c_uint>;
 
 #[link(name = "pcap")]
 extern "C" {
@@ -69,7 +66,11 @@ extern "C" {
 
 extern "C" {
     #[link_name = "bpfjit_generate_code"]
-    fn bpfjit_generate_code(ctx: *const bpf_ctx_t, insns: *const bpf_insn_t, user: libc::size_t) -> bpfjit_func_t;
+    fn bpfjit_generate_code(
+        ctx: *const bpf_ctx_t,
+        insns: *const bpf_insn_t,
+        user: libc::size_t,
+    ) -> bpfjit_func_t;
 
     #[link_name = "bpfjit_free_code"]
     fn bpfjit_free_code(func: bpfjit_func_t);
@@ -79,17 +80,14 @@ lazy_static! {
     static ref BIGLOCK: sync::Mutex<u8> = sync::Mutex::new(0);
 }
 
-pub struct BpfJit
-{
+pub struct BpfJit {
     prog: bpf_program_t,
     ctx: *const bpf_ctx_t,
     cb: bpfjit_func_t,
 }
 
-impl BpfJit
-{
-    pub fn new(filter: &str) -> Result<Self, Box<Error>>
-    {
+impl BpfJit {
+    pub fn new(filter: &str) -> Result<Self, Box<Error>> {
         unsafe {
             let mut result: BpfJit = mem::zeroed();
 
@@ -120,8 +118,7 @@ impl BpfJit
         }
     }
 
-    pub fn matches(&self, data: &[u8]) -> bool
-    {
+    pub fn matches(&self, data: &[u8]) -> bool {
         unsafe {
             let mut bpf_args: bpf_args_t = mem::zeroed();
             bpf_args.pkt = data.as_ptr();
@@ -133,16 +130,18 @@ impl BpfJit
     }
 }
 
-impl Clone for BpfJit
-{
-    fn clone(&self) -> Self
-    {
+impl Clone for BpfJit {
+    fn clone(&self) -> Self {
         unsafe {
             let mut result: BpfJit = mem::zeroed();
 
             result.prog = self.prog;
 
-            result.cb = bpfjit_generate_code(result.ctx, result.prog.bf_insns, result.prog.bf_len as libc::size_t);
+            result.cb = bpfjit_generate_code(
+                result.ctx,
+                result.prog.bf_insns,
+                result.prog.bf_len as libc::size_t,
+            );
             if result.cb.is_none() {
                 panic!("could not JIT cBPF expression"); // we already JIT'ed the same program before, so this should never happen
             }
