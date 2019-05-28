@@ -2,7 +2,7 @@
 
 Rust bindings to NetBSD's cBPF JIT engine
 
-**Version:** 1.0.2<br/>
+**Version:** 1.1.0<br/>
 **Author:** Alex Forster \<alex@alexforster.com\><br/>
 **License:** BSD-2-Clause
 
