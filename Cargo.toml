@@ -1,6 +1,6 @@
 [package]
 name = "bpfjit-sys"
-version = "1.1.0"
+version = "2.0.0"
 description = "Rust bindings to NetBSD's cBPF JIT engine"
 readme = "README.md"
 repository = "https://github.com/alexforster/bpfjit-sys"
@@ -17,7 +17,7 @@ maintenance = { status = "passively-maintained" }
 
 [dependencies]
 libc = "0.2"
-lazy_static = "1.3"
+lazy_static = "1.4"
 
 [build-dependencies]
 cc = "1.0"
