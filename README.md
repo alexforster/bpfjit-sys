@@ -2,7 +2,7 @@
 
 Rust bindings to NetBSD's cBPF JIT engine
 
-**Version:** 1.1.0<br/>
+**Version:** 2.0.0<br/>
 **Author:** Alex Forster \<alex@alexforster.com\><br/>
 **License:** BSD-2-Clause
 
@@ -11,15 +11,14 @@ Rust bindings to NetBSD's cBPF JIT engine
 ### Usage
 
 ```rust
-
-use bpfjit_sys::BpfJit;
+use bpfjit_sys::{BpfJit, Linktype};
 
 static PACKET: &'static [u8] = &[
 	// 0xDE, 0xAD, 0xBE, 0xEF, ...
 ];
 
 fn main() {
-	let filter = BpfJit::new("udp dst port 123")?;
+	let filter = BpfJit::new("udp dst port 123", Linktype::Ethernet)?;
 	
 	if filter.matches(PACKET) {
 		// ...
