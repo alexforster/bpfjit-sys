@@ -7,60 +7,64 @@ use std::str::FromStr;
 use std::sync;
 
 use lazy_static::lazy_static;
-use libc;
+use libc::*;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+#[allow(non_camel_case_types)]
 struct bpf_insn_t {
-    pub code: libc::c_ushort,
-    pub jt: libc::c_uchar,
-    pub jf: libc::c_uchar,
-    pub k: libc::c_uint,
+    pub code: c_ushort,
+    pub jt: c_uchar,
+    pub jf: c_uchar,
+    pub k: c_uint,
 }
 
 #[repr(C)]
 #[derive(Debug)]
+#[allow(non_camel_case_types)]
 struct bpf_program_t {
-    pub bf_len: libc::c_uint,
+    pub bf_len: c_uint,
     pub bf_insns: *mut bpf_insn_t,
 }
 
 #[repr(C)]
 #[derive(Debug)]
+#[allow(non_camel_case_types)]
 struct bpf_args_t {
-    pub pkt: *const libc::c_uchar,
-    pub wirelen: libc::size_t,
-    pub buflen: libc::size_t,
-    pub mem: *mut libc::c_uint,
+    pub pkt: *const c_uchar,
+    pub wirelen: size_t,
+    pub buflen: size_t,
+    pub mem: *mut c_uint,
     pub arg: *mut ffi::c_void,
 }
 
 #[repr(C)]
 #[derive(Debug)]
+#[allow(non_camel_case_types)]
 struct bpf_ctx_t {
     pub copfuncs: *const ffi::c_void,
-    pub nfuncs: libc::size_t,
-    pub extwords: libc::size_t,
-    pub preinited: libc::c_uint,
+    pub nfuncs: size_t,
+    pub extwords: size_t,
+    pub preinited: c_uint,
 }
 
 #[allow(non_camel_case_types)]
 type bpfjit_func_t =
-    Option<unsafe extern "C" fn(ctx: *const bpf_ctx_t, args: *mut bpf_args_t) -> libc::c_uint>;
+    Option<unsafe extern "C" fn(ctx: *const bpf_ctx_t, args: *mut bpf_args_t) -> c_uint>;
 
 #[link(name = "pcap")]
 extern "C" {
     #[link_name = "pcap_open_dead"]
-    fn pcap_open_dead(linktype: libc::c_int, snaplen: libc::c_int) -> *mut ffi::c_void;
+    fn pcap_open_dead(linktype: c_int, snaplen: c_int) -> *mut ffi::c_void;
 
     #[link_name = "pcap_compile"]
     fn pcap_compile(
         p: *mut ffi::c_void,
         fp: *mut bpf_program_t,
-        str: *const libc::c_char,
-        optimize: libc::c_int,
-        netmask: libc::c_uint,
-    ) -> libc::c_int;
+        str: *const c_char,
+        optimize: c_int,
+        netmask: c_uint,
+    ) -> c_int;
 
     #[link_name = "pcap_close"]
     fn pcap_close(p: *mut ffi::c_void);
@@ -69,7 +73,7 @@ extern "C" {
     fn pcap_freecode(fp: *mut bpf_program_t);
 
     #[link_name = "pcap_geterr"]
-    fn pcap_geterr(p: *mut ffi::c_void) -> *const libc::c_char;
+    fn pcap_geterr(p: *mut ffi::c_void) -> *const c_char;
 }
 
 extern "C" {
@@ -77,7 +81,7 @@ extern "C" {
     fn bpfjit_generate_code(
         ctx: *const bpf_ctx_t,
         insns: *const bpf_insn_t,
-        user: libc::size_t,
+        user: size_t,
     ) -> bpfjit_func_t;
 
     #[link_name = "bpfjit_free_code"]
@@ -90,8 +94,8 @@ lazy_static! {
 
 unsafe fn compile(
     filter: &str,
-    linktype: libc::c_int,
-    snaplen: libc::c_int,
+    linktype: c_int,
+    snaplen: c_int,
 ) -> Result<Vec<Opcode>, Box<dyn Error>> {
     let mut bpf_program: bpf_program_t = mem::zeroed();
 
@@ -132,7 +136,7 @@ unsafe fn compile(
 
 unsafe fn jit(program: &bpf_program_t) -> Result<(bpf_ctx_t, bpfjit_func_t), Box<dyn Error>> {
     let ctx: bpf_ctx_t = mem::zeroed();
-    let cb = bpfjit_generate_code(&ctx, program.bf_insns, program.bf_len as libc::size_t);
+    let cb = bpfjit_generate_code(&ctx, program.bf_insns, program.bf_len as size_t);
     match cb {
         Some(_) => Ok((ctx, cb)),
         None => Err(Box::from("could not JIT cBPF bytecode")),
@@ -175,7 +179,7 @@ impl Into<bpf_program_t> for Vec<Opcode> {
                 k: opcode.3,
             });
         }
-        let bf_len = insns.len() as libc::c_uint;
+        let bf_len = insns.len() as c_uint;
         let bf_insns = insns.as_mut_ptr();
         mem::forget(insns);
         bpf_program_t { bf_len, bf_insns }
@@ -188,10 +192,10 @@ pub enum Linktype {
     Ip,
 }
 
-impl Into<libc::c_int> for Linktype {
-    fn into(self) -> libc::c_int {
+impl Into<c_int> for Linktype {
+    fn into(self) -> c_int {
         match self {
-            Linktype::Other(linktype) => linktype as libc::c_int,
+            Linktype::Other(linktype) => linktype as c_int,
             Linktype::Ethernet => 1,
             Linktype::Ip => 12,
         }
