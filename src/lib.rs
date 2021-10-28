@@ -127,9 +127,9 @@ unsafe fn jit(program: &bpf_program_t) -> Result<(bpf_ctx_t, bpfjit_func_t), Box
 #[derive(Debug, Copy, Clone)]
 pub struct Opcode(pub u16, pub u8, pub u8, pub u32);
 
-impl Into<Opcode> for bpf_insn_t {
-    fn into(self) -> Opcode {
-        Opcode(self.code, self.jt, self.jf, self.k)
+impl From<bpf_insn_t> for Opcode {
+    fn from(insn: bpf_insn_t) -> Self {
+        Opcode(insn.code, insn.jt, insn.jf, insn.k)
     }
 }
 
@@ -149,10 +149,10 @@ impl FromStr for Opcode {
     }
 }
 
-impl Into<bpf_program_t> for Vec<Opcode> {
-    fn into(self) -> bpf_program_t {
+impl From<Vec<Opcode>> for bpf_program_t {
+    fn from(opcodes: Vec<Opcode>) -> Self {
         let mut insns = vec![];
-        for opcode in self {
+        for opcode in opcodes {
             insns.push(bpf_insn_t { code: opcode.0, jt: opcode.1, jf: opcode.2, k: opcode.3 });
         }
         let bf_len = insns.len() as c_uint;
@@ -168,9 +168,9 @@ pub enum Linktype {
     Ip,
 }
 
-impl Into<c_int> for Linktype {
-    fn into(self) -> c_int {
-        match self {
+impl From<Linktype> for c_int {
+    fn from(linktype: Linktype) -> Self {
+        match linktype {
             Linktype::Other(linktype) => linktype as c_int,
             Linktype::Ethernet => 1,
             Linktype::Ip => 12,
