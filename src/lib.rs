@@ -1,6 +1,8 @@
 // src/lib.rs
 
-use std::error::Error;
+#![allow(non_camel_case_types)]
+
+use std::error;
 use std::ffi;
 use std::mem;
 use std::str::FromStr;
@@ -11,7 +13,6 @@ use libc::*;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-#[allow(non_camel_case_types)]
 struct bpf_insn_t {
     pub code: c_ushort,
     pub jt: c_uchar,
@@ -21,7 +22,6 @@ struct bpf_insn_t {
 
 #[repr(C)]
 #[derive(Debug)]
-#[allow(non_camel_case_types)]
 struct bpf_program_t {
     pub bf_len: c_uint,
     pub bf_insns: *mut bpf_insn_t,
@@ -29,7 +29,6 @@ struct bpf_program_t {
 
 #[repr(C)]
 #[derive(Debug)]
-#[allow(non_camel_case_types)]
 struct bpf_args_t {
     pub pkt: *const c_uchar,
     pub wirelen: size_t,
@@ -40,7 +39,6 @@ struct bpf_args_t {
 
 #[repr(C)]
 #[derive(Debug)]
-#[allow(non_camel_case_types)]
 struct bpf_ctx_t {
     pub copfuncs: *const ffi::c_void,
     pub nfuncs: size_t,
@@ -48,16 +46,12 @@ struct bpf_ctx_t {
     pub preinited: c_uint,
 }
 
-#[allow(non_camel_case_types)]
-type bpfjit_func_t =
-    Option<unsafe extern "C" fn(ctx: *const bpf_ctx_t, args: *mut bpf_args_t) -> c_uint>;
+type bpfjit_func_t = unsafe extern "C" fn(ctx: *const bpf_ctx_t, args: *mut bpf_args_t) -> c_uint;
 
 #[link(name = "pcap")]
 extern "C" {
-    #[link_name = "pcap_open_dead"]
     fn pcap_open_dead(linktype: c_int, snaplen: c_int) -> *mut ffi::c_void;
 
-    #[link_name = "pcap_compile"]
     fn pcap_compile(
         p: *mut ffi::c_void,
         fp: *mut bpf_program_t,
@@ -66,37 +60,24 @@ extern "C" {
         netmask: c_uint,
     ) -> c_int;
 
-    #[link_name = "pcap_close"]
     fn pcap_close(p: *mut ffi::c_void);
 
-    #[link_name = "pcap_freecode"]
     fn pcap_freecode(fp: *mut bpf_program_t);
 
-    #[link_name = "pcap_geterr"]
     fn pcap_geterr(p: *mut ffi::c_void) -> *const c_char;
 }
 
 extern "C" {
-    #[link_name = "bpfjit_generate_code"]
-    fn bpfjit_generate_code(
-        ctx: *const bpf_ctx_t,
-        insns: *const bpf_insn_t,
-        user: size_t,
-    ) -> bpfjit_func_t;
+    fn bpfjit_generate_code(ctx: *const bpf_ctx_t, insns: *const bpf_insn_t, user: size_t) -> Option<bpfjit_func_t>;
 
-    #[link_name = "bpfjit_free_code"]
     fn bpfjit_free_code(func: bpfjit_func_t);
 }
 
 lazy_static! {
-    static ref BIGLOCK: sync::Mutex<u8> = sync::Mutex::new(0);
+    static ref BIGLOCK: sync::Mutex<()> = sync::Mutex::new(());
 }
 
-unsafe fn compile(
-    filter: &str,
-    linktype: c_int,
-    snaplen: c_int,
-) -> Result<Vec<Opcode>, Box<dyn Error>> {
+unsafe fn compile(filter: &str, linktype: c_int, snaplen: c_int) -> Result<Vec<Opcode>, Box<dyn error::Error>> {
     let mut bpf_program: bpf_program_t = mem::zeroed();
 
     let lock = BIGLOCK.lock().unwrap(); // pcap_compile() in libpcap <1.8 is not thread safe
@@ -134,11 +115,11 @@ unsafe fn compile(
     Ok(result)
 }
 
-unsafe fn jit(program: &bpf_program_t) -> Result<(bpf_ctx_t, bpfjit_func_t), Box<dyn Error>> {
+unsafe fn jit(program: &bpf_program_t) -> Result<(bpf_ctx_t, bpfjit_func_t), Box<dyn error::Error>> {
     let ctx: bpf_ctx_t = mem::zeroed();
     let cb = bpfjit_generate_code(&ctx, program.bf_insns, program.bf_len as size_t);
     match cb {
-        Some(_) => Ok((ctx, cb)),
+        Some(cb) => Ok((ctx, cb)),
         None => Err(Box::from("could not JIT cBPF bytecode")),
     }
 }
@@ -153,7 +134,7 @@ impl Into<Opcode> for bpf_insn_t {
 }
 
 impl FromStr for Opcode {
-    type Err = Box<dyn Error>;
+    type Err = Box<dyn error::Error>;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts: Vec<&str> = s.split_ascii_whitespace().collect();
@@ -172,12 +153,7 @@ impl Into<bpf_program_t> for Vec<Opcode> {
     fn into(self) -> bpf_program_t {
         let mut insns = vec![];
         for opcode in self {
-            insns.push(bpf_insn_t {
-                code: opcode.0,
-                jt: opcode.1,
-                jf: opcode.2,
-                k: opcode.3,
-            });
+            insns.push(bpf_insn_t { code: opcode.0, jt: opcode.1, jf: opcode.2, k: opcode.3 });
         }
         let bf_len = insns.len() as c_uint;
         let bf_insns = insns.as_mut_ptr();
@@ -209,7 +185,7 @@ pub struct BpfJit {
 }
 
 impl BpfJit {
-    pub fn new(filter: &str, linktype: Linktype) -> Result<Self, Box<dyn Error>> {
+    pub fn new(filter: &str, linktype: Linktype) -> Result<Self, Box<dyn error::Error>> {
         unsafe {
             let prog = compile(filter, linktype.into(), 0xFFFF)?;
             let (ctx, cb) = jit(&prog.clone().into())?;
@@ -217,7 +193,7 @@ impl BpfJit {
         }
     }
 
-    pub fn raw(opcodes: &[Opcode]) -> Result<Self, Box<dyn Error>> {
+    pub fn raw(opcodes: &[Opcode]) -> Result<Self, Box<dyn error::Error>> {
         unsafe {
             let prog = opcodes.to_vec();
             let (ctx, cb) = jit(&prog.clone().into())?;
@@ -231,7 +207,7 @@ impl BpfJit {
             bpf_args.pkt = data.as_ptr();
             bpf_args.wirelen = data.len();
             bpf_args.buflen = data.len();
-            self.cb.unwrap()(&self.ctx, &mut bpf_args) != 0
+            (self.cb)(&self.ctx, &mut bpf_args)
         }
     }
 }
@@ -249,13 +225,10 @@ impl Clone for BpfJit {
 impl Drop for BpfJit {
     fn drop(&mut self) {
         unsafe {
-            if self.cb.is_some() {
-                bpfjit_free_code(self.cb);
-            }
+            bpfjit_free_code(self.cb);
         }
     }
 }
 
 unsafe impl Send for BpfJit {}
-
 unsafe impl Sync for BpfJit {}

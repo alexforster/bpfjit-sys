@@ -3,8 +3,6 @@
 use std::env;
 use std::path::PathBuf;
 
-use cc;
-
 fn main() {
     let src = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("src");
 
