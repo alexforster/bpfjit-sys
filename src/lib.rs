@@ -201,7 +201,7 @@ impl BpfJit {
         }
     }
 
-    pub fn matches(&self, data: &[u8]) -> bool {
+    pub fn value(&self, data: &[u8]) -> u32 {
         unsafe {
             let mut bpf_args: bpf_args_t = mem::zeroed();
             bpf_args.pkt = data.as_ptr();
@@ -209,6 +209,10 @@ impl BpfJit {
             bpf_args.buflen = data.len();
             (self.cb)(&self.ctx, &mut bpf_args)
         }
+    }
+
+    pub fn matches(&self, data: &[u8]) -> bool {
+        self.value(data) != 0
     }
 }
 
