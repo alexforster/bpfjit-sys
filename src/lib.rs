@@ -8,7 +8,6 @@ use std::mem;
 use std::str::FromStr;
 use std::sync;
 
-use lazy_static::lazy_static;
 use libc::*;
 
 #[repr(C)]
@@ -73,9 +72,7 @@ extern "C" {
     fn bpfjit_free_code(func: bpfjit_func_t);
 }
 
-lazy_static! {
-    static ref BIGLOCK: sync::Mutex<()> = sync::Mutex::new(());
-}
+static BIGLOCK: sync::Mutex<()> = sync::Mutex::new(());
 
 unsafe fn compile(filter: &str, linktype: c_int, snaplen: c_int) -> Result<Vec<Opcode>, Box<dyn error::Error>> {
     let mut bpf_program: bpf_program_t = mem::zeroed();

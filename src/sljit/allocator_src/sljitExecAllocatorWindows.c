@@ -23,3 +23,18 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+#define SLJIT_UPDATE_WX_FLAGS(from, to, enable_exec)
+
+static SLJIT_INLINE void* alloc_chunk(sljit_uw size)
+{
+	return VirtualAlloc(NULL, size, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+}
+
+static SLJIT_INLINE void free_chunk(void *chunk, sljit_uw size)
+{
+	SLJIT_UNUSED_ARG(size);
+	VirtualFree(chunk, 0, MEM_RELEASE);
+}
+
+#include "sljitExecAllocatorCore.c"
