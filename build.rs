@@ -18,7 +18,6 @@ fn main() {
     cc.define("SLJIT_ARGUMENT_CHECKS", "1");
     cc.define("SLJIT_DEBUG", "0");
     cc.define("SLJIT_VERBOSE", "0");
-    cc.define("__BPF_PRIVATE", "1");
 
     cc.include(&src.join("sljit"));
     cc.include(&src.join("bpfjit"));

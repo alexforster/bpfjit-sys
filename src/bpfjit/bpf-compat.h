@@ -57,19 +57,19 @@ typedef uint32_t bpf_memword_init_t;
 #define	BPF_MEMWORD_INIT(k)	(UINT32_C(1) << (k))
 
 typedef struct bpf_args {
-    const uint8_t *	pkt;
-    size_t		wirelen;
-    size_t		buflen;
-    /*
-     * The following arguments are used only by some kernel
-     * subsystems.
-     * They aren't required for classical bpf filter programs.
-     * For such programs, bpfjit generated code doesn't read
-     * those arguments at all. Note however that bpf interpreter
-     * always needs a pointer to memstore.
-     */
-    uint32_t *	mem; /* pointer to external memory store */
-    void *		arg; /* auxiliary argument for a copfunc */
+	const uint8_t *	pkt;
+	size_t		wirelen;
+	size_t		buflen;
+	/*
+	 * The following arguments are used only by some kernel
+	 * subsystems.
+	 * They aren't required for classical bpf filter programs.
+	 * For such programs, bpfjit generated code doesn't read
+	 * those arguments at all. Note however that bpf interpreter
+	 * always needs a pointer to memstore.
+	 */
+	uint32_t *	mem; /* pointer to external memory store */
+	void *		arg; /* auxiliary argument for a copfunc */
 } bpf_args_t;
 
 #if defined(_KERNEL) || defined(__BPF_PRIVATE)
