@@ -188,6 +188,7 @@ static SLJIT_INLINE int create_tempfile(void)
 static SLJIT_INLINE struct chunk_header* alloc_chunk(sljit_uw size)
 {
 	struct chunk_header *retval;
+	void *executable;
 	int fd;
 
 	fd = create_tempfile();
@@ -199,20 +200,21 @@ static SLJIT_INLINE struct chunk_header* alloc_chunk(sljit_uw size)
 		return NULL;
 	}
 
+	executable = mmap(NULL, size, PROT_READ | PROT_EXEC, MAP_SHARED, fd, 0);
+	if (executable == MAP_FAILED) {
+		close(fd);
+		return NULL;
+	}
+
 	retval = (struct chunk_header *)mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 
 	if (retval == MAP_FAILED) {
+		munmap((void *)executable, size);
 		close(fd);
 		return NULL;
 	}
 
-	retval->executable = mmap(NULL, size, PROT_READ | PROT_EXEC, MAP_SHARED, fd, 0);
-
-	if (retval->executable == MAP_FAILED) {
-		munmap((void *)retval, size);
-		close(fd);
-		return NULL;
-	}
+	retval->executable = executable;
 
 	close(fd);
 	return retval;
