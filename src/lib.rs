@@ -78,6 +78,8 @@ lazy_static! {
 }
 
 unsafe fn compile(filter: &str, linktype: c_int, snaplen: c_int) -> Result<Vec<Opcode>, Box<dyn error::Error>> {
+    let filter = ffi::CString::new(filter)?;
+
     let mut bpf_program: bpf_program_t = mem::zeroed();
 
     let lock = BIGLOCK.lock().unwrap(); // pcap_compile() in libpcap <1.8 is not thread safe
@@ -87,16 +89,16 @@ unsafe fn compile(filter: &str, linktype: c_int, snaplen: c_int) -> Result<Vec<O
     let compiled = pcap_compile(
         pcap,
         &mut bpf_program,
-        ffi::CString::new(filter)?.as_ptr(),
+        filter.as_ptr(),
         1,
         0xffff_ffff, // PCAP_NETMASK_UNKNOWN
     );
 
     if compiled != 0 {
-        return Err(Box::from(format!(
-            "could not compile cBPF expression: {}",
-            ffi::CStr::from_ptr(pcap_geterr(pcap)).to_str().unwrap()
-        )));
+        // The error string is owned by the pcap handle, so copy it out before closing the handle.
+        let err = ffi::CStr::from_ptr(pcap_geterr(pcap)).to_string_lossy().into_owned();
+        pcap_close(pcap);
+        return Err(Box::from(format!("could not compile cBPF expression: {}", err)));
     }
 
     pcap_close(pcap);
