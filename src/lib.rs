@@ -115,9 +115,12 @@ unsafe fn compile(filter: &str, linktype: c_int, snaplen: c_int) -> Result<Vec<O
     Ok(result)
 }
 
-unsafe fn jit(program: &bpf_program_t) -> Result<(bpf_ctx_t, bpfjit_func_t), Box<dyn error::Error>> {
+unsafe fn jit(opcodes: &[Opcode]) -> Result<(bpf_ctx_t, bpfjit_func_t), Box<dyn error::Error>> {
+    // bpfjit only reads the instructions while generating code, so this buffer is dropped (and freed)
+    // once bpfjit_generate_code() returns.
+    let insns: Vec<bpf_insn_t> = opcodes.iter().map(|&opcode| opcode.into()).collect();
     let ctx: bpf_ctx_t = mem::zeroed();
-    let cb = bpfjit_generate_code(&ctx, program.bf_insns, program.bf_len as size_t);
+    let cb = bpfjit_generate_code(&ctx, insns.as_ptr(), insns.len() as size_t);
     match cb {
         Some(cb) => Ok((ctx, cb)),
         None => Err(Box::from("could not JIT cBPF bytecode")),
@@ -149,16 +152,9 @@ impl FromStr for Opcode {
     }
 }
 
-impl From<Vec<Opcode>> for bpf_program_t {
-    fn from(opcodes: Vec<Opcode>) -> Self {
-        let mut insns = vec![];
-        for opcode in opcodes {
-            insns.push(bpf_insn_t { code: opcode.0, jt: opcode.1, jf: opcode.2, k: opcode.3 });
-        }
-        let bf_len = insns.len() as c_uint;
-        let bf_insns = insns.as_mut_ptr();
-        mem::forget(insns);
-        bpf_program_t { bf_len, bf_insns }
+impl From<Opcode> for bpf_insn_t {
+    fn from(opcode: Opcode) -> Self {
+        bpf_insn_t { code: opcode.0, jt: opcode.1, jf: opcode.2, k: opcode.3 }
     }
 }
 
@@ -188,7 +184,7 @@ impl BpfJit {
     pub fn new(filter: &str, linktype: Linktype) -> Result<Self, Box<dyn error::Error>> {
         unsafe {
             let prog = compile(filter, linktype.into(), 0xFFFF)?;
-            let (ctx, cb) = jit(&prog.clone().into())?;
+            let (ctx, cb) = jit(&prog)?;
             Ok(BpfJit { prog, ctx, cb })
         }
     }
@@ -196,7 +192,7 @@ impl BpfJit {
     pub fn raw(opcodes: &[Opcode]) -> Result<Self, Box<dyn error::Error>> {
         unsafe {
             let prog = opcodes.to_vec();
-            let (ctx, cb) = jit(&prog.clone().into())?;
+            let (ctx, cb) = jit(&prog)?;
             Ok(BpfJit { prog, ctx, cb })
         }
     }
@@ -220,7 +216,7 @@ impl Clone for BpfJit {
     fn clone(&self) -> Self {
         unsafe {
             let prog = self.prog.clone();
-            let (ctx, cb) = jit(&prog.clone().into()).unwrap();
+            let (ctx, cb) = jit(&prog).unwrap();
             BpfJit { prog, ctx, cb }
         }
     }
