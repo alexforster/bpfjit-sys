@@ -1,3 +1,5 @@
+/*	$NetBSD: sljitConfig.h,v 1.17 2020/03/05 15:18:55 riastradh Exp $	*/
+
 /*
  *    Stack-less Just-In-Time compiler
  *
@@ -24,19 +26,15 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef SLJIT_CONFIG_H_
-#define SLJIT_CONFIG_H_
+#ifndef _SLJIT_CONFIG_H_
+#define _SLJIT_CONFIG_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+/* --------------------------------------------------------------------- */
+/*  Custom defines                                                       */
+/* --------------------------------------------------------------------- */
 
-/*
-  This file contains the basic configuration options for the SLJIT compiler
-  and their default values. These options can be overridden in the
-  sljitConfigPre.h header file when SLJIT_HAVE_CONFIG_PRE is set to a
-  non-zero value.
-*/
+/* Put your custom defines here. This empty section will never change
+   which helps maintaining patches (with diff / patch utilities). */
 
 /* --------------------------------------------------------------------- */
 /*  Architecture                                                         */
@@ -54,26 +52,67 @@ extern "C" {
 /* #define SLJIT_CONFIG_MIPS_32 1 */
 /* #define SLJIT_CONFIG_MIPS_64 1 */
 /* #define SLJIT_CONFIG_SPARC_32 1 */
-/* #define SLJIT_CONFIG_S390X 1 */
+/* #define SLJIT_CONFIG_TILEGX 1 */
 
 /* #define SLJIT_CONFIG_AUTO 1 */
 /* #define SLJIT_CONFIG_UNSUPPORTED 1 */
+
+#include <machine/sljit_machdep.h>
+
+#if defined(_KERNEL) && !defined(SLJIT_MALLOC)
+#define SLJIT_MALLOC(size, allocator_data) malloc((size), M_TEMP, M_WAITOK)
+#endif
+
+#if defined(_KERNEL) && !defined(SLJIT_FREE)
+#define SLJIT_FREE(ptr, allocator_data) free((ptr), M_TEMP)
+#endif
+
+#if defined(_KERNEL) && !defined(SLJIT_CACHE_FLUSH)
+#error "SLJIT_CACHE_FLUSH must be defined."
+#endif
+
+
+#ifdef _KERNEL
+
+#ifdef DIAGNOSTIC
+#define SLJIT_DEBUG 1
+#else
+#define SLJIT_DEBUG 0
+#endif
+
+#define SLJIT_ASSERT(x) KASSERT(x)
+#define SLJIT_ASSERT_STOP() \
+	panic("Should never been reached " __FILE__ ":%d\n", __LINE__)
+#endif
+
+#ifdef _KERNEL
+#define SLJIT_VERBOSE 0
+#endif
+
+#ifdef _KERNEL
+#define SLJIT_IS_FPU_AVAILABLE 0
+#endif
+
+#ifdef _KERNEL
+#include <sys/cdefs.h>
+#include <sys/malloc.h>
+#include <sys/param.h>
+#endif
 
 /* --------------------------------------------------------------------- */
 /*  Utilities                                                            */
 /* --------------------------------------------------------------------- */
 
-/* Implements a stack like data structure (by using mmap / VirtualAlloc  */
-/* or a custom allocator). */
+/* Useful for thread-safe compiling of global functions. */
+#ifndef SLJIT_UTIL_GLOBAL_LOCK
+/* Enabled by default */
+#define SLJIT_UTIL_GLOBAL_LOCK 1
+#endif
+
+/* Implements a stack like data structure (by using mmap / VirtualAlloc). */
 #ifndef SLJIT_UTIL_STACK
 /* Enabled by default */
 #define SLJIT_UTIL_STACK 1
-#endif
-
-/* Uses user provided allocator to allocate the stack (see SLJIT_UTIL_STACK) */
-#ifndef SLJIT_UTIL_SIMPLE_STACK_ALLOCATION
-/* Disabled by default */
-#define SLJIT_UTIL_SIMPLE_STACK_ALLOCATION 0
 #endif
 
 /* Single threaded application. Does not require any locks. */
@@ -102,37 +141,19 @@ extern "C" {
 
 /* When SLJIT_PROT_EXECUTABLE_ALLOCATOR is enabled SLJIT uses
    an allocator which does not set writable and executable
-   permission flags at the same time.
-   Instead, it creates a shared memory segment (usually backed by a file)
-   and maps it twice, with different permissions, depending on the use
-   case.
-   The trade-off is increased use of virtual memory, incompatibility with
-   fork(), and some possible additional security risks by the use of
-   publicly accessible files for the generated code. */
+   permission flags at the same time. The trade-of is increased
+   memory consumption and disabled dynamic code modifications. */
 #ifndef SLJIT_PROT_EXECUTABLE_ALLOCATOR
 /* Disabled by default. */
 #define SLJIT_PROT_EXECUTABLE_ALLOCATOR 0
 #endif
 
-/* When SLJIT_WX_EXECUTABLE_ALLOCATOR is enabled SLJIT uses an
-   allocator which does not set writable and executable permission
-   flags at the same time.
-   Instead, it creates a new independent map on each invocation and
-   switches permissions at the underlying pages as needed.
-   The trade-off is increased memory use and degraded performance. */
-#ifndef SLJIT_WX_EXECUTABLE_ALLOCATOR
-/* Disabled by default. */
-#define SLJIT_WX_EXECUTABLE_ALLOCATOR 0
 #endif
-
-#endif /* !SLJIT_EXECUTABLE_ALLOCATOR */
 
 /* Force cdecl calling convention even if a better calling
    convention (e.g. fastcall) is supported by the C compiler.
-   If this option is disabled (this is the default), functions
-   called from JIT should be defined with SLJIT_FUNC attribute.
-   Standard C functions can still be called by using the
-   SLJIT_CALL_CDECL jump type. */
+   If this option is enabled, C functions without
+   SLJIT_CALL can also be called from JIT code. */
 #ifndef SLJIT_USE_CDECL_CALLING_CONVENTION
 /* Disabled by default */
 #define SLJIT_USE_CDECL_CALLING_CONVENTION 0
@@ -165,8 +186,4 @@ extern "C" {
 
 /* For further configurations, see the beginning of sljitConfigInternal.h */
 
-#ifdef __cplusplus
-} /* extern "C" */
 #endif
-
-#endif /* SLJIT_CONFIG_H_ */
