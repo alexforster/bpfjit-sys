@@ -12,7 +12,6 @@ edition = "2018"
 build = "build.rs"
 
 [badges]
-travis-ci = { repository = "alexforster/bpfjit-sys" }
 maintenance = { status = "passively-maintained" }
 
 [dependencies]

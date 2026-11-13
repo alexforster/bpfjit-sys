@@ -5,7 +5,7 @@ Rust bindings to NetBSD's cBPF JIT engine
 **Author:** Alex Forster \<alex@alexforster.com\><br/>
 **License:** BSD-2-Clause
 
-[![Build Status](https://travis-ci.org/alexforster/bpfjit-sys.svg?branch=master)](https://travis-ci.org/alexforster/bpfjit-sys)
+[![CI](https://github.com/alexforster/bpfjit-sys/actions/workflows/ci.yml/badge.svg)](https://github.com/alexforster/bpfjit-sys/actions/workflows/ci.yml)
 
 ### Usage
 
