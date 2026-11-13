@@ -85,6 +85,7 @@ unsafe fn compile(filter: &str, linktype: c_int, snaplen: c_int) -> Result<Vec<O
     let lock = BIGLOCK.lock().unwrap(); // pcap_compile() in libpcap <1.8 is not thread safe
 
     let pcap = pcap_open_dead(linktype, snaplen);
+    assert!(!pcap.is_null(), "pcap_open_dead failed");
 
     let compiled = pcap_compile(
         pcap,
