@@ -41,7 +41,7 @@ jobs:
       - name: Install native and release dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes libpcap-dev libssl-dev pkg-config
+          sudo apt-get install --yes libpcap-dev libssl-dev pkg-config patch
           cargo install cargo-edit --version 0.13.12 --locked
 
       - name: Bump version

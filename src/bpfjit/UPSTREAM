@@ -1,0 +1,22 @@
+NetBSD src snapshot: 88b7858091c9fbc32bd7e475ea5a138a1a3b4819
+
+BPF JIT source: sys/net/bpfjit.c and sys/net/bpfjit.h
+Matching SLJIT source: sys/external/bsd/sljit/dist/sljit_src/
+Both are from the same NetBSD src commit above.
+
+The vendored NetBSD and SLJIT source files remain the pristine snapshot above.
+All local adaptations are carried in patches/netbsd-bpfjit.patch and
+patches/netbsd-sljit.patch and applied to copied sources in OUT_DIR; they are
+not edits to the pristine upstream C files.
+
+Those patches record the userspace adaptations: bpfjit.c selects libpcap's
+pcap-bpf.h on Linux and the platform net/bpf.h elsewhere, includes this local
+bpfjit.h, and only emits NetBSD RCSID macros on NetBSD. If sys/queue.h is
+unavailable, it supplies only the SLIST macros used by bpfjit.c. bpfjit.h uses
+bpf-compat.h to provide the private bpf_args_t/bpf_ctx_t ABI expected by this
+crate. sljitConfig.h omits NetBSD's <machine/sljit_machdep.h>; build.rs supplies
+automatic architecture selection and host-specific executable allocator
+settings. The SLJIT tree's original per-file license notices and local LICENSE
+are kept. Apple MAP_JIT and write-protection support is carried in the SLJIT
+patch as executable allocator and ARM64 code-generation/patch-transition
+adaptations.
